@@ -53,6 +53,46 @@ pub struct SpellConfig {
 }
 
 impl Value {
+    pub fn as_str(&self) -> Option<&String> {
+        if let Value::Str { s, .. } = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_num(&self) -> Option<&String> {
+        if let Value::Num(s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        if let Value::Bool(b) = self {
+            Some(*b)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_obj(&self) -> Option<&crate::MapT> {
+        if let Value::Obj(map) = self {
+            Some(map)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_list(&self) -> Option<&Vec<Value>> {
+        if let Value::List(l) = self {
+            Some(l)
+        } else {
+            None
+        }
+    }
+
     pub fn as_f64(&self) -> Option<f64> {
         let Self::Num(num) = self else {
             return None;
