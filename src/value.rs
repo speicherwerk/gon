@@ -1,5 +1,7 @@
 use std::fmt::Write;
 
+use regex::regex;
+
 /// A gon value
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
@@ -162,15 +164,19 @@ impl Value {
 
     pub fn spell(&self, config: SpellConfig) -> Result<String, std::fmt::Error> {
         let mut buf = String::new();
-        self.spell0(&mut buf, 0, &config)?;
+        self.spell0(&mut buf, 0, &config, 0)?;
         Ok(buf)
     }
 
+    ///
+    /// obj_curr_key_length: length in characters of the current key when spelling
+    ///     an object
     fn spell0(
         &self,
         buf: &mut String,
         current_indent: usize,
         config: &SpellConfig,
+        obj_curr_key_length: usize,
     ) -> std::fmt::Result {
         match self {
             Self::None => write!(buf, "None")?,
@@ -184,16 +190,21 @@ impl Value {
                     raw_str = squash_whitespace(&raw_str);
                     let wrapped_lines = textwrap::wrap(
                         &raw_str,
-                        textwrap::Options::new(config.max_width).subsequent_indent(&gen_indent(
-                            current_indent + config.indent_amount,
-                            config,
-                        )),
+                        textwrap::Options::new(
+                            config.max_width - current_indent - obj_curr_key_length,
+                        )
+                        .word_separator(textwrap::WordSeparator::AsciiSpace),
                     );
+                    let subsequent_indent =
+                        gen_indent(current_indent + obj_curr_key_length + 1, config);
                     for (i, line) in wrapped_lines.iter().enumerate() {
-                        if i == wrapped_lines.len() - 1 {
-                            write!(buf, "{line}")?;
-                        } else {
-                            writeln!(buf, "{line}")?;
+                        match i {
+                            _ if i == 0 && wrapped_lines.len() > 1 => writeln!(buf, "{line}")?,
+                            _ if i == 0 => write!(buf, "{line}")?,
+                            _ if i == wrapped_lines.len() - 1 => {
+                                write!(buf, "{subsequent_indent}{line}")?
+                            }
+                            _ => writeln!(buf, "{subsequent_indent}{line}")?,
                         }
                     }
                 }
@@ -210,7 +221,7 @@ impl Value {
                     } else {
                         write!(buf, "{k}: ")?;
                     }
-                    v.spell0(buf, new_indent, config)?;
+                    v.spell0(buf, new_indent, config, k.len() + 2)?;
                     if !config.trailing_commas && i == obj.len() - 1 {
                         writeln!(buf, "")?;
                     } else {
@@ -237,11 +248,11 @@ impl Value {
                 }
                 for (i, x) in xs.iter().enumerate() {
                     if oneline {
-                        x.spell0(buf, 0, config)?;
+                        x.spell0(buf, 0, config, 0)?;
                     } else {
                         let new_indent = current_indent + config.indent_amount;
                         apply_indent(buf, new_indent, config)?;
-                        x.spell0(buf, new_indent, config)?;
+                        x.spell0(buf, new_indent, config, 0)?;
                     }
                     if oneline {
                         if i != xs.len() - 1 {
@@ -265,8 +276,9 @@ impl Value {
 }
 
 fn squash_whitespace(input: &str) -> String {
-    let re = regex::Regex::new(r"[ \t\r\n]{2,}").unwrap();
-    re.replace_all(input, " ").into_owned()
+    let re = regex!(r"(?m)^[ \t\r]{2,}");
+    let squashed = re.replace_all(input, "").into_owned();
+    squashed.replace('\n', " ")
 }
 
 fn apply_indent(buf: &mut String, amount: usize, config: &SpellConfig) -> std::fmt::Result {
