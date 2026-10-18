@@ -5,7 +5,7 @@ pub mod json;
 pub mod parser;
 pub mod value;
 
-use parol_runtime::ParolError;
+use parol_runtime::{ParolError, Report};
 ///! Parser for a simple JSON-like format that doesn't require quotes around keys and
 ///! allows trailing commas (but requires non at all).
 pub use value::{List, Object, SpellConfig, Value};
@@ -15,6 +15,9 @@ use std::{collections::HashMap, path::Path};
 use thiserror::Error;
 
 use crate::gon_grammar::GonGrammar;
+
+pub struct GonErrorReporter;
+impl Report for GonErrorReporter {}
 
 pub fn parse(s: &str) -> Result<Value, GonError> {
     let mut gon_grammar = &mut GonGrammar::new();
