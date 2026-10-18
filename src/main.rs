@@ -4,9 +4,11 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use clap::Parser;
+use parol_runtime::Report;
 use serde_json::Value as JsonValue;
 
 use gon::*;
+use tempfile::NamedTempFile;
 
 #[derive(Parser)]
 #[command(name = "gon", version, about = "CLI-utility for working with GON data", long_about = None)]
@@ -52,6 +54,9 @@ enum Verb {
     /// Verify the syntax of the given file
     Verify,
 }
+
+struct ErrorReporter;
+impl Report for ErrorReporter {}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
@@ -111,7 +116,7 @@ fn print_or_write_to_file(out: &str, file: Option<PathBuf>) -> Result<(), Box<dy
     }
 }
 
-fn get_src(file: Option<PathBuf>) -> Result<String, Box<dyn Error>> {
+fn get_src(file: Option<&PathBuf>) -> Result<String, Box<dyn Error>> {
     let src = if let Some(file) = file {
         let file = File::open(file).map_err(|e| Box::new(e))?;
         std::io::read_to_string(file).map_err(|e| Box::new(e))?
@@ -126,11 +131,31 @@ fn get_src(file: Option<PathBuf>) -> Result<String, Box<dyn Error>> {
 }
 
 fn get_json_input(file: Option<PathBuf>) -> Result<JsonValue, Box<dyn Error>> {
-    let src = get_src(file)?;
+    let src = get_src(file.as_ref())?;
     serde_json::from_str(&src).map_err(|e| e.into())
 }
 
 fn get_gon_input(file: Option<PathBuf>) -> Result<Value, Box<dyn Error>> {
-    let src = get_src(file)?;
-    parse_str(&src).map_err(|e| e.into())
+    let src = get_src(file.as_ref())?;
+    let res = if let Some(path) = &file {
+        parse_file(&src, path).map_err(Into::into)
+    } else {
+        parse_file(&src, "").map_err(Into::into)
+    };
+
+    match res.as_ref() {
+        Err(GonError::ParserErr(e)) => {
+            let path = if let Some(path) = file {
+                path
+            } else {
+                let tmp = NamedTempFile::new().expect("tempfile");
+                std::fs::write(&tmp, &src).expect("tempfile io");
+                tmp.path().into()
+            };
+            ErrorReporter::report_error(e, path);
+        }
+        _ => (),
+    }
+
+    res.map_err(Into::into)
 }

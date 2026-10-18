@@ -1,0 +1,31 @@
+%start Value
+%title "gon grammar"
+
+%%
+
+/*  0 */ Value: None;
+/*  1 */ Value: Str;
+/*  2 */ Value: Num;
+/*  3 */ Value: Bool;
+/*  4 */ Value: Obj;
+/*  5 */ Value: List;
+/*  6 */ None: 'null';
+/*  7 */ None: 'none';
+/*  8 */ None: 'None';
+/*  9 */ Str: /"([^"]|\\")*"/;
+/* 10 */ Num: /[\+\-]?[0-9_]+(\.[0-9_]+)?([eE][\+\-][0-9_]+)?/;
+/* 11 */ Bool: 'true';
+/* 12 */ Bool: 'false';
+/* 13 */ TrailingComma: ','^ /* Clipped */;
+/* 14 */ TrailingComma: ;
+/* 15 */ Obj: '{'^ /* Clipped */ ObjSuffix;
+/* 16 */ ObjSuffix: Pair ObjList /* Vec */ TrailingComma^ /* Clipped */ '}'^ /* Clipped */;
+/* 17 */ ObjSuffix: '}'^ /* Clipped */;
+/* 18 */ ObjList /* Vec<T>::Push */: TrailingComma^ /* Clipped */ Pair ObjList;
+/* 19 */ ObjList /* Vec<T>::New */: ;
+/* 20 */ Pair: /[^:\[\]\{\},\s]+/ ':' Value;
+/* 21 */ List: '['^ /* Clipped */ ListSuffix;
+/* 22 */ ListSuffix: Value ListList /* Vec */ TrailingComma^ /* Clipped */ ']'^ /* Clipped */;
+/* 23 */ ListSuffix: ']'^ /* Clipped */;
+/* 24 */ ListList /* Vec<T>::Push */: TrailingComma^ /* Clipped */ Value ListList;
+/* 25 */ ListList /* Vec<T>::New */: ;

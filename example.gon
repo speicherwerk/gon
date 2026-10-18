@@ -1,10 +1,14 @@
 {
-    name: "foo"
-    other_names: ["bar", "baz"]
-    ok: true
-    age: 3.14
+    name: "foo",
+    other_names: ["bar", "baz"],
+    ok: true,
+    age: 3.14,
     nested: {
         obviously: true,
-        no_problem: [{a:[1000]}]
-    },
+        no_problem: [
+            {
+                a: [1000]
+            }
+        ]
+    }
 }

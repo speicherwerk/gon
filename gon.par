@@ -1,0 +1,34 @@
+%start Value
+%title "gon grammar"
+
+%%
+
+Value:
+    None
+    | Str
+    | Num
+    | Bool
+    | Obj
+    | List
+    ;
+
+None: 'null' | 'none' | 'None' ;
+
+Str: /"([^"]|\\")*"/ ;
+
+Num: /[\+\-]?[0-9_]+(\.[0-9_]+)?([eE][\+\-][0-9_]+)?/ ;
+
+Bool: 'true' | 'false' ;
+
+TrailingComma: ','^ | ;
+
+Obj
+    : '{'^ Pair { TrailingComma^ Pair } TrailingComma^ '}'^
+    | '{'^ '}'^
+    ;
+Pair: /[^:\[\]\{\},\s]+/ ':' Value ;
+
+List
+    : '['^ Value { TrailingComma^ Value } TrailingComma^ ']'^
+    | '['^  ']'^
+    ;

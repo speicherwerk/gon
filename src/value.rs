@@ -7,14 +7,12 @@ use regex::regex;
 pub enum Value {
     /// None, akin to JSON null.
     /// # Grammar
-    /// `None = "null" | "none" ;` (case insensitive)
+    /// `None = "null" | "none" | "None" ;`
     None,
-    /// A string in double quotes. Writing `r` or `R` in front of it turns it into
-    /// a "raw" string which tells the formatter not to put line breaks when spelling.
+    /// A string in double quotes. Anything goes, no escapes apply.
     /// # Grammar
-    /// `Str = ( "r" | "R" )? STR_LIT ;` (where STR_LIT is whatever `klex` tokenizes as a string)
-    /// Arbitrary whitespace may be between the r and the string literal.
-    Str { s: String, raw: bool },
+    /// `Str = STR_LIT ;` (consult gon.par)
+    Str(String),
     /// A number value.
     /// # Grammar
     /// `Num = NUM_LIT ;` (where NUM_LIT is whatever `klex` tokenizes as a number)
@@ -56,7 +54,7 @@ pub struct SpellConfig {
 
 impl Value {
     pub fn as_str(&self) -> Option<&String> {
-        if let Value::Str { s, .. } = self {
+        if let Value::Str(s) = self {
             Some(s)
         } else {
             None
@@ -113,12 +111,8 @@ impl Value {
     pub fn min_spell(&self) -> String {
         match self {
             Self::None => "None".into(),
-            Self::Str { s, raw } => {
-                if *raw {
-                    format!("r{}", klex::Token::Str(s.into()).spelling())
-                } else {
-                    klex::Token::Str(s.into()).spelling()
-                }
+            Self::Str(s) => {
+                format!("\"{}\"", s)
             }
             Self::Num(s) => s.into(),
             Self::Bool(b) => {
@@ -131,14 +125,7 @@ impl Value {
             Self::Obj(m) => {
                 let mut spelling = String::from("{");
                 for (i, (k, v)) in m.iter().enumerate() {
-                    let key_needs_quotes = key_needs_quoting(k);
-                    if key_needs_quotes {
-                        spelling.push('"');
-                    }
                     spelling.push_str(k);
-                    if key_needs_quotes {
-                        spelling.push('"');
-                    }
                     spelling.push(':');
                     spelling.push_str(&v.min_spell());
                     if i != m.len() - 1 {
@@ -180,13 +167,11 @@ impl Value {
     ) -> std::fmt::Result {
         match self {
             Self::None => write!(buf, "None")?,
-            Self::Str { s, raw } => {
+            Self::Str(s) => {
                 if config.max_width == 0 {
-                    write!(buf, "{}", klex::Token::Str(s.clone()).spelling())?;
-                } else if *raw {
-                    write!(buf, "r{}", klex::Token::Str(s.clone()).spelling())?;
+                    write!(buf, "\"{s}\"")?;
                 } else {
-                    let mut raw_str = format!("{}", klex::Token::Str(s.clone()).spelling());
+                    let mut raw_str = format!("\"{s}\"");
                     raw_str = squash_whitespace(&raw_str);
                     let wrapped_lines = textwrap::wrap(
                         &raw_str,
@@ -216,11 +201,7 @@ impl Value {
                 let new_indent = current_indent + config.indent_amount;
                 for (i, (k, v)) in obj.iter().enumerate() {
                     apply_indent(buf, new_indent, config)?;
-                    if key_needs_quoting(k) {
-                        write!(buf, "\"{k}\": ")?;
-                    } else {
-                        write!(buf, "{k}: ")?;
-                    }
+                    write!(buf, "{k}: ")?;
                     v.spell0(buf, new_indent, config, k.len() + 2)?;
                     if !config.trailing_commas && i == obj.len() - 1 {
                         writeln!(buf, "")?;
@@ -289,14 +270,6 @@ fn gen_indent(amount: usize, config: &SpellConfig) -> String {
     std::iter::repeat(config.indent_char)
         .take(amount)
         .collect::<String>()
-}
-
-fn key_needs_quoting(key: &str) -> bool {
-    let lexer_result = klex::Lexer::new(key, 0).lex();
-    match lexer_result {
-        Ok(tokens) => tokens.len() > 1,
-        _ => true,
-    }
 }
 
 impl Default for SpellConfig {

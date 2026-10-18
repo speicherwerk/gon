@@ -1,6 +1,6 @@
 [package]
 name = "gon"
-version = "0.3.0"
+version = "1.0.0"
 edition = "2024"
 
 [features]
@@ -9,14 +9,19 @@ preserve_order = ["indexmap", "serde_json/preserve_order"]
 build_bin = ["clap", "preserve_order", "json"]
 
 [dependencies]
-klex = { git = "https://www.github.com/speicherwerk/klex", branch = "main", features = ["raw_strings"] }
 thiserror = "^2.0.12"
 serde_json = { version = "1.0", optional = true }
 indexmap = { version = "2.7", optional = true }
 clap = { version = "^4.5.31", features = ["derive"], optional = true }
 textwrap = "0.16.2"
 regex = "1.13.1"
+parol_runtime = "5.0.2"
+scnr2 = "0.5.2"
+tempfile = "3.27.0"
 
 [[bin]]
 name = "gon"
 required-features = ["build_bin"]
+
+[build-dependencies]
+parol = "5.0.3"
